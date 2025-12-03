@@ -1,0 +1,5 @@
+{
+  "name": "Embedded HVAC Controller",
+  "description": "A simulation of an 800x480 embedded HMI for smart home temperature control, designed for easy porting to LVGL.",
+  "requestFramePermissions": []
+}
