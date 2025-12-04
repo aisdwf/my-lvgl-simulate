@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ScreenFrame } from './components/ScreenFrame';
 import { Header } from './components/Header';
@@ -10,13 +11,12 @@ import {
   Cpu, 
   Signal, 
   Power, 
-  ChevronRight,
   Home,
   Fan,
-  AlertCircle,
   Palette,
   ScanEye,
-  X
+  X,
+  Copy
 } from 'lucide-react';
 
 // --- UTILS FOR RGB565 ---
@@ -29,14 +29,13 @@ const rgbTo565 = (r: number, g: number, b: number): string => {
 };
 
 const parseColor = (colorStr: string): { hex: string, cCode: string } => {
-    // This is a browser approximation. In a real scenario, we'd map Tailwind classes to exact values.
-    // Here we use a canvas to compute the browser's rendered color.
-    if (!colorStr) return { hex: 'N/A', cCode: '0x0000' };
+    if (!colorStr || colorStr === 'rgba(0, 0, 0, 0)') return { hex: 'Transparent', cCode: '---' };
     
+    // Create temp element to resolve color names or complex values
     const div = document.createElement('div');
     div.style.color = colorStr;
     document.body.appendChild(div);
-    const computed = getComputedStyle(div).color; // returns "rgb(r, g, b)" or "rgba..."
+    const computed = getComputedStyle(div).color; 
     document.body.removeChild(div);
 
     const rgbMatch = computed.match(/\d+/g);
@@ -92,17 +91,23 @@ const App: React.FC = () => {
         const bgColorInfo = parseColor(styles.backgroundColor);
         const txtColorInfo = parseColor(styles.color);
 
+        // Check for LVGL symbol marker on self or children (for icon buttons)
+        const symbolAttr = element.getAttribute('data-lv-symbol') || 
+                           element.querySelector('[data-lv-symbol]')?.getAttribute('data-lv-symbol');
+
         setInspectData({
-            tagName: element.tagName,
+            tagName: element.tagName.toLowerCase(),
             x: relX,
             y: relY,
             width: Math.round(rect.width),
             height: Math.round(rect.height),
             bgColor: bgColorInfo.hex,
-            rgb565: bgColorInfo.cCode,
+            bgRgb565: bgColorInfo.cCode,
             textColor: txtColorInfo.hex,
-            text: element.innerText?.slice(0, 20) || '',
-            classes: element.className.split(' ').slice(0, 3).join('...') // abbreviated
+            textRgb565: txtColorInfo.cCode,
+            text: element.innerText?.slice(0, 30).replace(/\n/g, ' ') || '',
+            classes: element.className.split(' ').slice(0, 2).join('...'),
+            lvSymbol: symbolAttr || undefined
         });
     }
   };
@@ -155,7 +160,7 @@ const App: React.FC = () => {
     <div className="h-full flex gap-6 p-6 bg-zinc-950 relative" data-component="HomeView">
       <div className="flex-1 flex flex-col justify-center items-center bg-zinc-900 border border-zinc-800 rounded-sm" data-component="WelcomeCard">
         <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mb-4 ring-1 ring-zinc-700">
-           <Fan size={40} className="text-cyan-500 animate-[spin_8s_linear_infinite]" />
+           <Fan size={40} className="text-cyan-500 animate-[spin_8s_linear_infinite]" data-lv-symbol="LV_SYMBOL_SETTINGS" />
         </div>
         <h1 className="text-3xl font-bold text-zinc-100 mb-2">System Ready</h1>
         <p className="text-zinc-500 text-sm text-center px-8">
@@ -215,7 +220,7 @@ const App: React.FC = () => {
         data-component="MenuButton:Status"
       >
         <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center group-hover:scale-105 transition-transform border border-zinc-700">
-          <Activity size={40} className="text-cyan-500" />
+          <Activity size={40} className="text-cyan-500" data-lv-symbol="LV_SYMBOL_AUDIO"/>
         </div>
         <div className="text-center">
           <h3 className="text-xl font-bold text-zinc-200">System Status</h3>
@@ -230,7 +235,7 @@ const App: React.FC = () => {
         data-component="MenuButton:Add"
       >
         <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center group-hover:scale-105 transition-transform border border-zinc-700">
-          <Plus size={40} className="text-orange-500" />
+          <Plus size={40} className="text-orange-500" data-lv-symbol="LV_SYMBOL_PLUS" />
         </div>
         <div className="text-center">
           <h3 className="text-xl font-bold text-zinc-200">Add Device</h3>
@@ -246,7 +251,7 @@ const App: React.FC = () => {
         <div className="bg-zinc-900 rounded-sm p-6 flex flex-col justify-between border border-zinc-800 border-l-4 border-l-orange-600" data-component="StatCard:Rooms">
           <div className="flex items-start justify-between">
             <h3 className="text-zinc-400 font-medium text-lg uppercase tracking-wider">Rooms</h3>
-            <Home className="text-orange-600" size={28} />
+            <Home className="text-orange-600" size={28} data-lv-symbol="LV_SYMBOL_HOME" />
           </div>
           <span className="text-6xl font-bold text-zinc-100 font-mono">{rooms.length}</span>
         </div>
@@ -254,7 +259,7 @@ const App: React.FC = () => {
         <div className="bg-zinc-900 rounded-sm p-6 flex flex-col justify-between border border-zinc-800 border-l-4 border-l-cyan-600" data-component="StatCard:Sensors">
           <div className="flex items-start justify-between">
             <h3 className="text-zinc-400 font-medium text-lg uppercase tracking-wider">Sensors</h3>
-            <Cpu className="text-cyan-600" size={28} />
+            <Cpu className="text-cyan-600" size={28} data-lv-symbol="LV_SYMBOL_SD_CARD" />
           </div>
           <span className="text-6xl font-bold text-zinc-100 font-mono">
             {rooms.reduce((acc, r) => acc + r.sensorCount, 0)}
@@ -264,7 +269,7 @@ const App: React.FC = () => {
         <div className="col-span-2 bg-zinc-900 rounded-sm p-6 flex items-center justify-between border border-zinc-800" data-component="GatewayStatus">
             <div className="flex items-center gap-6">
                 <div className="w-12 h-12 rounded-sm bg-emerald-900/30 border border-emerald-800 flex items-center justify-center">
-                    <Signal size={24} className="text-emerald-500" />
+                    <Signal size={24} className="text-emerald-500" data-lv-symbol="LV_SYMBOL_WIFI" />
                 </div>
                 <div>
                     <h4 className="text-zinc-100 font-bold text-lg">ZIGBEE GATEWAY</h4>
@@ -294,14 +299,17 @@ const App: React.FC = () => {
                 <div key={device.id} className="flex items-center justify-between p-4 bg-zinc-900 hover:bg-zinc-800 rounded-sm border border-zinc-800 transition-colors" data-component={`DeviceItem:${device.id}`}>
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-zinc-800 rounded-sm flex items-center justify-center border border-zinc-700">
-                             <Cpu size={20} className="text-zinc-400"/>
+                             <Cpu size={20} className="text-zinc-400" data-lv-symbol="LV_SYMBOL_USB" />
                         </div>
                         <div>
                             <p className="text-zinc-200 font-bold text-sm">{device.name}</p>
                             <p className="text-zinc-500 text-xs font-mono">{device.mac}</p>
                         </div>
                     </div>
-                    <button className="bg-cyan-700 hover:bg-cyan-600 text-white px-5 py-2 rounded-sm font-bold text-xs uppercase tracking-wide transition-colors border border-cyan-600">
+                    <button 
+                        className="bg-cyan-700 hover:bg-cyan-600 text-white px-5 py-2 rounded-sm font-bold text-xs uppercase tracking-wide transition-colors border border-cyan-600"
+                        data-lv-symbol="LV_SYMBOL_PLUS"
+                    >
                         Pair
                     </button>
                 </div>
@@ -360,7 +368,7 @@ const App: React.FC = () => {
             <div className="bg-zinc-900 rounded-sm p-5 border border-zinc-800" data-component="ValveControl">
                 <div className="flex justify-between items-center mb-4">
                     <span className="text-zinc-300 font-medium">Valve State</span>
-                    <Power size={20} className={activeRoom.isValveOpen ? 'text-orange-500' : 'text-zinc-700'} />
+                    <Power size={20} className={activeRoom.isValveOpen ? 'text-orange-500' : 'text-zinc-700'} data-lv-symbol="LV_SYMBOL_POWER" />
                 </div>
                 <button 
                     onClick={() => toggleValve(activeRoom.id)}
@@ -417,119 +425,200 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-        <ScreenFrame>
-        {/* Main App Container with Click Capture for Inspector */}
-        <div 
-            ref={appContainerRef}
-            className={`flex flex-col h-full w-full bg-zinc-950 ${inspectMode ? 'cursor-crosshair' : 'cursor-default'}`}
-            onClickCapture={handleGlobalClick}
-        >
-            <Header 
-                currentView={currentView}
-                onNavigate={navigateTo} 
-                onBack={goBack}
-                inspectMode={inspectMode}
-                title={
-                    currentView === View.CONTROL_ROOM_DETAIL ? activeRoom?.name :
-                    currentView === View.PAIRING_STATUS ? 'System Status' :
-                    currentView === View.PAIRING_ADD ? 'Add Device' :
-                    currentView === View.CONTROL_ROOM_LIST ? 'Select Room' : undefined
-                }
-            />
-            <div className="flex-1 overflow-hidden relative">
-            {renderContent()}
-            </div>
-
-            {/* INSPECTOR OVERLAY */}
-            {inspectMode && inspectData && (
-                <div className="absolute inset-0 pointer-events-none z-[100]">
-                    {/* Highlight Box */}
-                    <div 
-                        className="absolute border-2 border-green-400 bg-green-400/10 transition-all duration-100"
-                        style={{
-                            left: inspectData.x,
-                            top: inspectData.y,
-                            width: inspectData.width,
-                            height: inspectData.height
-                        }}
-                    >
-                         {/* Coordinates Label */}
-                         <div className="absolute -top-6 left-0 bg-green-500 text-black text-[10px] font-mono px-1 font-bold">
-                            X:{inspectData.x} Y:{inspectData.y}
-                         </div>
+    // MAIN LAYOUT - CHANGED TO ROW TO ACCOMMODATE DEV TOOLS ON SIDE
+    <div className="min-h-screen bg-neutral-950 flex flex-row items-center justify-center p-8 gap-12 font-sans select-none">
+        
+        {/* SIMULATOR CONTAINER */}
+        <div className="flex flex-col items-center gap-6">
+            <ScreenFrame>
+                {/* Main App Container with Click Capture for Inspector */}
+                <div 
+                    ref={appContainerRef}
+                    className={`flex flex-col h-full w-full bg-zinc-950 ${inspectMode ? 'cursor-crosshair' : 'cursor-default'}`}
+                    onClickCapture={handleGlobalClick}
+                >
+                    <Header 
+                        currentView={currentView}
+                        onNavigate={navigateTo} 
+                        onBack={goBack}
+                        inspectMode={inspectMode}
+                        title={
+                            currentView === View.CONTROL_ROOM_DETAIL ? activeRoom?.name :
+                            currentView === View.PAIRING_STATUS ? 'System Status' :
+                            currentView === View.PAIRING_ADD ? 'Add Device' :
+                            currentView === View.CONTROL_ROOM_LIST ? 'Select Room' : undefined
+                        }
+                    />
+                    <div className="flex-1 overflow-hidden relative">
+                    {renderContent()}
                     </div>
 
-                    {/* Info Panel Sidebar */}
-                    <div className="absolute top-4 right-4 w-64 bg-zinc-900/95 border border-zinc-600 shadow-2xl p-4 pointer-events-auto backdrop-blur-sm">
-                        <div className="flex justify-between items-center mb-3 border-b border-zinc-700 pb-2">
-                             <h4 className="text-green-400 font-bold font-mono text-sm uppercase">Inspector</h4>
-                             <button onClick={() => setInspectData(null)} className="text-zinc-500 hover:text-white">
-                                 <X size={14}/>
-                             </button>
+                    {/* INSPECTOR HIGHLIGHTER (STAYS INSIDE SCREEN TO MATCH COORDS) */}
+                    {inspectMode && inspectData && (
+                        <div className="absolute inset-0 pointer-events-none z-[100]">
+                            <div 
+                                className="absolute border-2 border-green-500 bg-green-500/10 transition-all duration-100"
+                                style={{
+                                    left: inspectData.x,
+                                    top: inspectData.y,
+                                    width: inspectData.width,
+                                    height: inspectData.height
+                                }}
+                            >
+                                {/* Smart Label Placement */}
+                                <div 
+                                    className={`absolute left-0 bg-green-600 text-white text-[10px] font-mono px-2 py-0.5 font-bold whitespace-nowrap ${inspectData.y < 30 ? '-bottom-5' : '-top-5'}`}
+                                >
+                                    X:{inspectData.x} Y:{inspectData.y}
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div className="space-y-3 font-mono text-xs text-zinc-300">
-                             <div>
-                                <span className="text-zinc-500 block">Element</span>
-                                <span className="text-white font-bold">{inspectData.tagName}</span>
-                             </div>
-                             
-                             <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <span className="text-zinc-500 block">Width</span>
-                                    <span>{inspectData.width} px</span>
-                                </div>
-                                <div>
-                                    <span className="text-zinc-500 block">Height</span>
-                                    <span>{inspectData.height} px</span>
-                                </div>
-                             </div>
-
-                             <div>
-                                <span className="text-zinc-500 block">Background (RGB565)</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <div className="w-4 h-4 border border-white/20" style={{backgroundColor: inspectData.bgColor}}></div>
-                                    <span className="text-cyan-400 font-bold select-all">{inspectData.rgb565}</span>
-                                </div>
-                                <span className="text-[10px] text-zinc-600 select-all">{inspectData.bgColor}</span>
-                             </div>
-
-                             {inspectData.text && (
-                                 <div>
-                                    <span className="text-zinc-500 block">Text Content</span>
-                                    <span className="text-white italic">"{inspectData.text}"</span>
-                                 </div>
-                             )}
-
-                             <div>
-                                <span className="text-zinc-500 block">Component / Class</span>
-                                <span className="text-[10px] text-zinc-400 break-all">{inspectData.classes}</span>
-                             </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
-            )}
-        </div>
-        </ScreenFrame>
-
-        {/* EXTERNAL TOGGLE FOR DEV MODE */}
-        <div className="fixed bottom-8 right-8 z-[200]">
+            </ScreenFrame>
+            
+            {/* TOGGLE BUTTON */}
             <button 
                 onClick={() => {
                     setInspectMode(!inspectMode);
-                    setInspectData(null);
+                    if (inspectMode) setInspectData(null);
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold text-xs shadow-xl transition-all border ${
+                className={`flex items-center gap-3 px-6 py-3 rounded-full font-mono font-bold text-sm shadow-xl transition-all border-2 ${
                     inspectMode 
-                    ? 'bg-green-500 text-black border-green-400' 
-                    : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                    ? 'bg-green-600 text-white border-green-500 hover:bg-green-500' 
+                    : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-white'
                 }`}
             >
-                <ScanEye size={16} />
-                {inspectMode ? 'DEV: ON' : 'DEV: OFF'}
+                <ScanEye size={20} />
+                {inspectMode ? 'DEV MODE: ON' : 'ENABLE INSPECTOR'}
             </button>
         </div>
+
+        {/* SIDE DEV PANEL (OUTSIDE SCREEN) */}
+        {inspectMode && (
+            <div className="w-[320px] h-[600px] bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl flex flex-col animate-in slide-in-from-left-4 duration-300">
+                {/* Panel Header */}
+                <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900 rounded-t-lg">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <h3 className="font-bold text-zinc-100 font-mono text-sm uppercase">Inspector Console</h3>
+                    </div>
+                    {inspectData && (
+                        <button 
+                            onClick={() => setInspectData(null)}
+                            className="text-zinc-500 hover:text-white p-1 hover:bg-zinc-800 rounded"
+                            title="Clear Selection"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Panel Content */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6 font-mono text-xs select-text">
+                    {!inspectData ? (
+                        <div className="h-full flex flex-col items-center justify-center text-zinc-600 text-center gap-3">
+                            <ScanEye size={40} className="opacity-20" />
+                            <p>Click any element on the screen<br/>to view LVGL properties.</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* SECTION: BASIC INFO */}
+                            <div className="space-y-1">
+                                <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Object</span>
+                                <div className="p-3 bg-black/40 rounded border border-zinc-800">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-green-400 font-bold text-sm">{inspectData.tagName}</span>
+                                        <span className="text-zinc-500 text-[10px]">ID: obj_0x{Math.floor(Math.random()*10000)}</span>
+                                    </div>
+                                    <div className="text-zinc-400 text-[10px] break-all">{inspectData.classes}</div>
+                                </div>
+                            </div>
+
+                            {/* SECTION: GEOMETRY */}
+                            <div className="space-y-1">
+                                <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Geometry (lv_area_t)</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="p-2 bg-zinc-800/50 rounded border border-zinc-800">
+                                        <span className="text-zinc-500 block text-[10px]">Pos X</span>
+                                        <span className="text-zinc-200 font-bold">{inspectData.x}</span>
+                                    </div>
+                                    <div className="p-2 bg-zinc-800/50 rounded border border-zinc-800">
+                                        <span className="text-zinc-500 block text-[10px]">Pos Y</span>
+                                        <span className="text-zinc-200 font-bold">{inspectData.y}</span>
+                                    </div>
+                                    <div className="p-2 bg-zinc-800/50 rounded border border-zinc-800">
+                                        <span className="text-zinc-500 block text-[10px]">Width</span>
+                                        <span className="text-zinc-200 font-bold">{inspectData.width}</span>
+                                    </div>
+                                    <div className="p-2 bg-zinc-800/50 rounded border border-zinc-800">
+                                        <span className="text-zinc-500 block text-[10px]">Height</span>
+                                        <span className="text-zinc-200 font-bold">{inspectData.height}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SECTION: STYLE / COLOR */}
+                            <div className="space-y-1">
+                                <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Style (lv_style_t)</span>
+                                
+                                {/* Background Color */}
+                                <div className="flex gap-2 p-2 bg-zinc-800/50 rounded border border-zinc-800 items-center">
+                                    <div className="w-8 h-8 rounded border border-white/10 shrink-0" style={{backgroundColor: inspectData.bgColor}}></div>
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-zinc-500 text-[10px] block">bg_color (RGB565)</span>
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-cyan-400 font-bold">{inspectData.bgRgb565}</code>
+                                            <span className="text-zinc-600 text-[10px]">{inspectData.bgColor}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Text Color */}
+                                <div className="flex gap-2 p-2 bg-zinc-800/50 rounded border border-zinc-800 items-center">
+                                    <div className="w-8 h-8 rounded border border-white/10 shrink-0 flex items-center justify-center font-serif" style={{backgroundColor: inspectData.bgColor, color: inspectData.textColor}}>Aa</div>
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-zinc-500 text-[10px] block">text_color (RGB565)</span>
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-orange-400 font-bold">{inspectData.textRgb565}</code>
+                                            <span className="text-zinc-600 text-[10px]">{inspectData.textColor}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SECTION: CONTENT */}
+                            {(inspectData.text || inspectData.lvSymbol) && (
+                                <div className="space-y-1">
+                                    <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Content</span>
+                                    <div className="p-3 bg-zinc-800/50 rounded border border-zinc-800 space-y-3">
+                                        {inspectData.lvSymbol && (
+                                            <div>
+                                                <span className="text-zinc-500 text-[10px] block mb-1">Symbol Macro</span>
+                                                <code className="block bg-black/50 p-1.5 rounded text-yellow-500 text-[11px] border border-zinc-700">
+                                                    {inspectData.lvSymbol}
+                                                </code>
+                                            </div>
+                                        )}
+                                        {inspectData.text && (
+                                            <div>
+                                                <span className="text-zinc-500 text-[10px] block mb-1">Label Text</span>
+                                                <div className="text-zinc-300 italic">"{inspectData.text}"</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+                
+                {/* Panel Footer */}
+                <div className="p-3 border-t border-zinc-800 bg-zinc-900/50 text-[10px] text-zinc-600 text-center">
+                    Select text to copy code snippet
+                </div>
+            </div>
+        )}
     </div>
   );
 };

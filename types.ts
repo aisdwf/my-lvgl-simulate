@@ -1,3 +1,4 @@
+
 // Enumeration for View Navigation
 export enum View {
   HOME = 'HOME',
@@ -39,8 +40,10 @@ export interface InspectData {
   width: number;
   height: number;
   bgColor: string;
+  bgRgb565: string;
   textColor: string;
-  rgb565: string; // The specific C code hex
+  textRgb565: string;
   text: string;
   classes: string;
+  lvSymbol?: string; // Standard LVGL Symbol macro if applicable
 }

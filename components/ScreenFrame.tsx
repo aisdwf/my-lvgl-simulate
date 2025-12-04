@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface ScreenFrameProps {
@@ -8,7 +9,7 @@ interface ScreenFrameProps {
 // It centers the content and adds a subtle border to simulate a screen bezel
 export const ScreenFrame: React.FC<ScreenFrameProps> = ({ children }) => {
   return (
-    <div className="relative group select-none">
+    <div className="relative group select-none shrink-0">
       {/* Simulation Bezel - Industrial Dark Gray */}
       <div className="w-[820px] h-[500px] bg-[#121212] rounded-none shadow-2xl flex items-center justify-center border-[10px] border-[#222]">
         

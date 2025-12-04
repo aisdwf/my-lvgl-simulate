@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View } from '../types';
 import { Settings, Thermometer, ArrowLeft } from 'lucide-react';
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onBack,
             onClick={() => handleNav(onBack)}
             className="flex items-center gap-2 text-zinc-300 hover:text-white active:bg-zinc-700 transition-colors bg-zinc-800 border border-zinc-600 px-4 h-[40px] rounded-sm"
             data-component="BackButton"
+            data-lv-symbol="LV_SYMBOL_LEFT"
           >
             <ArrowLeft size={20} />
             <span className="font-medium text-lg">Back</span>
@@ -67,6 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onBack,
               : 'bg-zinc-800 border-zinc-600 text-zinc-300 hover:bg-zinc-700'
           }`}
           data-component="NavButton:Pairing"
+          data-lv-symbol="LV_SYMBOL_SETTINGS"
         >
           <Settings size={18} />
           <span className="font-medium text-sm">Pairing</span>
@@ -80,6 +83,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onBack,
               : 'bg-zinc-800 border-zinc-600 text-zinc-300 hover:bg-zinc-700'
           }`}
           data-component="NavButton:Control"
+          data-lv-symbol="LV_SYMBOL_LIST" 
         >
           <Thermometer size={18} />
           <span className="font-medium text-sm">Control</span>
